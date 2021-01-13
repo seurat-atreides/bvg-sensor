@@ -1,0 +1,8 @@
+{
+  "domain": "bvg",
+  "name": "BVG Berlin public transportation sensor integration",
+  "documentation": "https://github.com/seurat-atreides/bvg-sensor",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": ["@disrupted", "@seurat-atreides"]
+}
