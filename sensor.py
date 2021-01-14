@@ -1,11 +1,4 @@
-# Version History:
-# Version 0.1 - initial release
-# Version 0.2 - added multiple destinations, optimized error logging
-# Version 0.3 fixed encoding, simplified config for direction
-# Version 0.3.1 fixed a bug when departure is null
-# Version 0.3.2 bufix for TypeError
-# Version 0.3.3 switched to timezone aware objects, cache_size added to config parameters, optimized logging
-# Version 0.3.4 fixed encoding (issue #3), fixed typo in filepath
+"""Sensor for the BVG data."""
 
 from urllib.request import urlopen
 import json
@@ -81,11 +74,11 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     name = config.get(CONF_NAME)
     cache_size = config.get(CONF_CACHE_SIZE)
     add_entities(
-        [BvgSensor(name, stop_id, direction, min_due_in, file_path, hass, cache_size)]
+        [Bvgsensor(name, stop_id, direction, min_due_in, file_path, hass, cache_size)]
     )
 
 
-class BvgSensor(Entity):
+class Bvgsensor(Entity):
     """Representation of a Sensor."""
 
     def __init__(
@@ -102,9 +95,7 @@ class BvgSensor(Entity):
         self._stop_id = stop_id
         self.direction = direction
         self.min_due_in = min_due_in
-        self.url = "https://2.bvg.transport.rest/stations/{}/departures?duration={}".format(
-            self._stop_id, self._cache_size
-        )
+        self.url = f"https://v5.bvg.transport.rest/stops/{self._stop_id}/departures?duration={self._cache_size}&remarks=false"
         self.data = None
         self.singleConnection = None
         self.file_path = self.hass_config.get("config_dir") + file_path

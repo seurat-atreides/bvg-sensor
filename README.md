@@ -1,16 +1,19 @@
 # BVG Sensor Component for Home Assistant
-**NOTE: this fork is Work-In-Progress because it's not functional under HassIO ver. 2020.12.07!<br>
-        The 1.bvg.transport.rest API has been deprecated and this sensor has to be modified to<br>
-        use the newer v5.bvg.transport.rest API**
+**NOTE: this HA sensor is Work-In-Progress, being teste under HassIO ver. 2021.2.0.dev0!<br>
+        This sensor is based on the now abandoned sensor: [fluffykraken/bvg-sensor](https://github.com/fluffykraken/bvg-sensor), and has to be modified to use the newer v5.bvg.transport.rest API. The multi-destination capabilitiy has been<br>
+        strippe away because I couldn't figure out how it was supposed to work.**
 
-The BVG Sensor can be used to display real-time public transport data for the city of Berlin within the BVG (Berliner Verkehrsbetriebe) route network.
-The sensor will display the minutes until the next departure for the configured station and direction. The provided data is in real-time and does include actual delays. If you want to customize the sensor you can use the provided sensor attributes. You can also define a walking distance from your home/work, so only departures that are reachable will be shown.
+# Abstract
+While setting up my RPI-base Hassio system I wondered how I could display the time in minutes till next departure of the BVG transport line I most use.
+My requirement is to be able to show al transport lines of interest in a single Entities-Card. I will need one instance of this sensor per transport line.
+The BVG Sensor is used to display real-time public transport data for the city of Berlin within the BVG (Berliner Verkehrsbetriebe) route network.
+The sensor will display the minutes until the next departure for the configured station and line direction. The sensor provided real-time data and includes actual delays. You can also define a walking distance from your home/work, so only departures times that are reachable will be shown.
 
-During testing I found that the API frequently becomes unavailable, possibly to keep the amount of requests low. Therefore this component keeps a local copy of the data (90 minutes). The local data is only beeing used while "offline" and is beeing refreshed when the API endpoint becomes available again.
+During testing I found that the API frequently becomes unavailable, possibly to keep the amount of requests low. Therefore this component keeps a local copy of the data (90 minutes). The local data will only be used while "offline" and is refreshed as soon as the API endpoint becomes available again.
 
 You can check the status of the API Endpoint here: https://status.transport.rest/784879513
 
-This component uses the API provided by the [v5.bvg.transport.rest](https://v5.bvg.transport.rest)
+This component uses the API provided by the [v5.bvg.transport.rest](https://v5.bvg.transport.rest).
 
 Read the [API documentation](https://v5.bvg.transport.rest/api.html)
 
@@ -45,9 +48,11 @@ To add the BVG Sensor Component to Home Assistant, add the following to your con
 
 ```yaml
 # Example configuration.yaml entry
-- platform: bvgsensor
+- platform: bvg-sensor
+    name: A distinctive route name
     stop_id: your stop id
     direction: the final destination for your connection
+    walking_distance: how many minutes walk to the stop
 ```
 
 - **stop_id** *(Required)*: The stop_id for your station.
@@ -56,13 +61,22 @@ To add the BVG Sensor Component to Home Assistant, add the following to your con
 - **walking_distance** *(optional)*: specify the walking distance in minutes from your home/location to the station. Only connections that are reachable in a timley manner will be shown. Set it to ``0`` if you want to disable this feature. *(Default=10)*
 - **file_path** *(optional)*: path where you want your station specific data to be saved. *(Default= your home assistant config directory e.g. "conf/" )*
 
+You can configure the instantiation of multiple sensors by adding more platform entries, each with a different name.
+
 ### Example Configuration:
 ```yaml
 sensor:
   - platform: bvg-sensor
-    name: U2 Rosa-Luxemburg-Platz
+    name: U2 -> S+U Pankow
     stop_id: "900000100016"
     direction: "S+U Pankow"
     walking_distance: 5
     file_path: "/tmp/"
-`
+
+  - platform: bvg-sensor
+    name: U2 -> S Ostbahnhof
+    stop_id: "900000100016"
+    direction: "	"S Ostbahnhof""
+    walking_distance: 5
+    file_path: "/tmp/"
+```
