@@ -1,6 +1,7 @@
 # BVG Sensor Component for Home Assistant
-**NOTE: this HA sensor is Work-In-Progress, being teste under HassIO ver. 2021.2.0.dev0!<br>
-        This sensor is based on the now abandoned sensor: [fluffykraken/bvg-sensor](https://github.com/fluffykraken/bvg-sensor), and has to be modified to use the newer v5.bvg.transport.rest API. The multi-destination capabilitiy has been<br>
+**NOTE:<br>
+  this HA sensor is Work-In-Progress, being teste under HassIO ver. 2021.2.0.dev0!<br>
+        This sensor is based on the now abandoned [fluffykraken/bvg-sensor](https://github.com/fluffykraken/bvg-sensor) and had to be modified to use a newer REST API. The multi-destination capabilitiy has been
         strippe away because I couldn't figure out how it was supposed to work.**
 
 # Abstract
@@ -19,16 +20,12 @@ Read the [REST API documentation](https://v5.bvg.transport.rest/api.html).
 
 # Characteristics
 This sensor will pull departure information for a particular travel direction from the [v5.bvg.transport.rest API](https://v5.bvg.transport.rest/).
-This information contains all departures for the stop/station and travel direction of interest. It spans a period of 90 min. (default) and is stored in a file: <file_path>/bvg_<stop_id>.
+This information contains all departures for the stop/station and travel direction of interest. It spans a period of 60 min. (default) and is stored in a file: <file_path>/bvg_<stop_id>.
 If the REST API is unavailable the local file will be used as the source of data.
 
 # Installation
-
-Simply clone this repo into a ``/config/custom_components/`` folder and rename it to ``sensor.py``.
-
-**Only valid for HomeAssistant Version lower than 0.89 as there were some breaking changes on how custom components will integrate with HomeAssistant from Version 0.89 and beyond...**
-
-Simply copy the file bvgsensor.py into your ``/config/custom_components/sensor/`` folder. If it does not already exist, create the missing folders.
+Create a ``custom_components`` subdirectory inside your Home Assistant ``/config`` folder.
+Clone this repo inside the ``/config/custom_components/`` folder.
 
 # Prerequisites
 

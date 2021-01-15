@@ -20,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 ATTR_STOP_ID = "stop_id"
 ATTR_STOP_NAME = "stop_name"
 ATTR_DUE_IN = "due_in"
-ATTR_DELAY = "delay"
+# ATTR_DELAY = "delay"
 ATTR_REAL_TIME = "departure_time"
 ATTR_DESTINATION_NAME = "direction"
 ATTR_TRANS_TYPE = "type"
@@ -141,7 +141,7 @@ class Bvgsensor(Entity):
             return {
                 ATTR_STOP_ID: self._stop_id,
                 ATTR_STOP_NAME: self.connectionInfo.get(ATTR_STOP_NAME),
-                ATTR_DELAY: self.connectionInfo.get(ATTR_DELAY),
+                # ATTR_DELAY: self.connectionInfo.get(ATTR_DELAY),
                 ATTR_REAL_TIME: self.connectionInfo.get(ATTR_REAL_TIME),
                 ATTR_DESTINATION_NAME: self.connectionInfo.get(ATTR_DESTINATION_NAME),
                 ATTR_TRANS_TYPE: self.connectionInfo.get(ATTR_TRANS_TYPE),
@@ -151,7 +151,7 @@ class Bvgsensor(Entity):
             return {
                 ATTR_STOP_ID: "n/a",
                 ATTR_STOP_NAME: "n/a",
-                ATTR_DELAY: "n/a",
+                # ATTR_DELAY: "n/a",
                 ATTR_REAL_TIME: "n/a",
                 ATTR_DESTINATION_NAME: "n/a",
                 ATTR_TRANS_TYPE: "n/a",
@@ -176,7 +176,7 @@ class Bvgsensor(Entity):
 
         This is the only method that should fetch new data for Home Assistant.
         """
-        self.fetchDataFromURL
+        # self.fetchDataFromAPI
         self.connectionInfo = self.getConnectionInfo(self.direction, self.min_due_in)
         if self.connectionInfo is not None and len(self.connectionInfo) > 0:
             self._state = self.connectionInfo.get(ATTR_DUE_IN)
@@ -184,15 +184,16 @@ class Bvgsensor(Entity):
             self._state = "n/a"
 
     # only custom code beyond this line
-    @property
-    def fetchDataFromURL(self):
 
+    def getConnectionInfo(self, direction, min_due_in):
+        # define the REST payload
         payload = f"/stops/{self._stop_id}/departures?direction={self._direction_id}&duration={self._cache_size}&remarks=false"
-
         try:
-            with urlopen(CON_REST_URL + payload) as response:
+            with urlopen(
+                CON_REST_URL + payload
+            ) as response:  # Get the data from the REST API
                 source = response.read().decode("utf8")
-                self.data = json.loads(source)
+                self.data = json.loads(source)  # JSON format the data
                 if self._con_state.get(CONNECTION_STATE) is CON_STATE_OFFLINE:
                     _LOGGER.warning("Connection to BVG API re-established")
                     self._con_state.update({CONNECTION_STATE: CON_STATE_ONLINE})
@@ -224,12 +225,9 @@ class Bvgsensor(Entity):
                 )
                 _LOGGER.error(errormsg)
 
-    def getConnectionInfo(self, direction, min_due_in):
         timetable_l = list()
         date_now = datetime.now(pytz.timezone(self.hass_config.get("time_zone")))
         for pos in self.data:
-            # _LOGGER.warning("conf_direction: {} pos_direction {}".format(direction, pos['direction']))
-            # if pos['direction'] in direction:
             if direction in pos["direction"]:
                 if pos["when"] is None:
                     continue
@@ -245,8 +243,8 @@ class Bvgsensor(Entity):
                             {
                                 ATTR_DESTINATION_NAME: pos["direction"],
                                 ATTR_REAL_TIME: dep_time,
-                                ATTR_DUE_IN: departure_td,
-                                ATTR_DELAY: delay,
+                                ATTR_DUE_IN: departure_td + delay,
+                                # ATTR_DELAY: delay,
                                 ATTR_TRIP_ID: pos["tripId"],
                                 ATTR_STOP_NAME: pos["stop"]["name"],
                                 ATTR_TRANS_TYPE: pos["line"]["product"],
@@ -262,23 +260,20 @@ class Bvgsensor(Entity):
                     _LOGGER.debug("Connection lies in the past")
             else:
                 _LOGGER.debug("No connection for specified direction")
-        try:
+
             _LOGGER.debug("Valid connection found")
             _LOGGER.debug("Connection: {}".format(timetable_l))
 
+        if len(timetable_l):
             return timetable_l[0]
-
-        except IndexError as errormsg:
+        else:
             if self.isCacheValid():
                 _LOGGER.warning(
-                    "No valid connection found for the sensor named {self.name}. Please check your configuration."
+                    f"No valid connection found for the sensor named {self.name}. Please check your configuration."
                 )
                 self._isCacheValid = True
             else:
-                if self._isCacheValid:
-                    _LOGGER.warning("Cache is outdated.")
                 self._isCacheValid = False
-            _LOGGER.error(errormsg)
             return None
 
     def isCacheValid(self):
@@ -292,7 +287,7 @@ class Bvgsensor(Entity):
         td = (date_now - self._cache_creation_date).total_seconds()
         _LOGGER.debug("td is: {}".format(td))
         if td > (self._cache_size * 60):
-            _LOGGER.debug(f"Cache outdated: {td // 60} min.")
+            _LOGGER.debug(f"Cache is outdated by: {td // 60} min.")
             return False
         else:
             return True
