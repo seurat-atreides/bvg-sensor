@@ -22,7 +22,7 @@ ATTR_STOP_NAME = "stop_name"
 ATTR_DUE_IN = "due_in"
 ATTR_DELAY = "delay"
 ATTR_REAL_TIME = "departure_time"
-ATTR_DESTINATION = "direction"
+ATTR_DESTINATION_NAME = "direction"
 ATTR_TRANS_TYPE = "type"
 ATTR_TRIP_ID = "trip"
 ATTR_LINE_NAME = "line_name"
@@ -30,7 +30,7 @@ ATTR_CONNECTION_STATE = "connection_status"
 
 CONF_NAME = "name"
 CONF_STOP_ID = "stop_id"
-CONF_DESTINATION = "direction"
+CONF_DIRECTION_ID = "direction_id"
 CONF_MIN_DUE_IN = "walking_distance"
 CONF_CACHE_PATH = "file_path"
 CONF_CACHE_SIZE = "cache_size"
@@ -38,6 +38,7 @@ CONF_CACHE_SIZE = "cache_size"
 CONNECTION_STATE = "connection_state"
 CON_STATE_ONLINE = "online"
 CON_STATE_OFFLINE = "offline"
+CON_REST_URL = "https://v5.bvg.transport.rest"
 
 ICONS = {
     "suburban": "mdi:subway-variant",
@@ -51,12 +52,12 @@ ICONS = {
     None: "mdi:clock",
 }
 
-SCAN_INTERVAL = timedelta(seconds=60)
+SCAN_INTERVAL = timedelta(seconds=120)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_STOP_ID): cv.string,
-        vol.Required(CONF_DESTINATION): vol.All(cv.ensure_list, [cv.string]),
+        vol.Required(CONF_DIRECTION_ID): cv.string,
         vol.Optional(CONF_MIN_DUE_IN, default=10): cv.positive_int,
         vol.Optional(CONF_CACHE_PATH, default="/"): cv.string,
         vol.Optional(CONF_NAME, default="BVG"): cv.string,
@@ -65,16 +66,36 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
+def getNameFromIBNR(ibnr):
+    name = ""
+    payload = f"/stops/{ibnr}"
+
+    try:
+        stop = json.loads(urlopen(CON_REST_URL + payload).read().decode("utf8"))
+        if stop["type"] == "stop" or stop["type"] == "station":
+            name = stop["name"]
+
+    except URLError as errormsg:
+        _LOGGER.debug(errormsg)
+        _LOGGER.warning("Failed to get the station IBNR")
+
+    return name
+
+
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Setup the sensor platform."""
     stop_id = config[CONF_STOP_ID]
-    direction = config.get(CONF_DESTINATION)
+    direction_id = config[CONF_DIRECTION_ID]
     min_due_in = config.get(CONF_MIN_DUE_IN)
     file_path = config.get(CONF_CACHE_PATH)
     name = config.get(CONF_NAME)
     cache_size = config.get(CONF_CACHE_SIZE)
     add_entities(
-        [Bvgsensor(name, stop_id, direction, min_due_in, file_path, hass, cache_size)]
+        [
+            Bvgsensor(
+                name, stop_id, direction_id, min_due_in, file_path, hass, cache_size
+            )
+        ]
     )
 
 
@@ -82,7 +103,7 @@ class Bvgsensor(Entity):
     """Representation of a Sensor."""
 
     def __init__(
-        self, name, stop_id, direction, min_due_in, file_path, hass, cache_size
+        self, name, stop_id, direction_id, min_due_in, file_path, hass, cache_size
     ):
         """Initialize the sensor."""
         self.hass_config = hass.config.as_dict()
@@ -92,14 +113,15 @@ class Bvgsensor(Entity):
         self._timezone = self.hass_config.get("time_zone")
         self._name = name
         self._state = None
+        self.stop = getNameFromIBNR(stop_id)
         self._stop_id = stop_id
-        self.direction = direction
+        self.direction = getNameFromIBNR(direction_id)
+        self._direction_id = direction_id
         self.min_due_in = min_due_in
-        self.url = f"https://v5.bvg.transport.rest/stops/{self._stop_id}/departures?duration={self._cache_size}&remarks=false"
         self.data = None
         self.singleConnection = None
         self.file_path = self.hass_config.get("config_dir") + file_path
-        self.file_name = "bvg_{}.json".format(stop_id)
+        self.file_name = "bvg_{}.json".format(self._stop_id)
         self._con_state = {CONNECTION_STATE: CON_STATE_ONLINE}
 
     @property
@@ -121,7 +143,7 @@ class Bvgsensor(Entity):
                 ATTR_STOP_NAME: self.singleConnection.get(ATTR_STOP_NAME),
                 ATTR_DELAY: self.singleConnection.get(ATTR_DELAY),
                 ATTR_REAL_TIME: self.singleConnection.get(ATTR_REAL_TIME),
-                ATTR_DESTINATION: self.singleConnection.get(ATTR_DESTINATION),
+                ATTR_DESTINATION_NAME: self.singleConnection.get(ATTR_DESTINATION_NAME),
                 ATTR_TRANS_TYPE: self.singleConnection.get(ATTR_TRANS_TYPE),
                 ATTR_LINE_NAME: self.singleConnection.get(ATTR_LINE_NAME),
             }
@@ -131,7 +153,7 @@ class Bvgsensor(Entity):
                 ATTR_STOP_NAME: "n/a",
                 ATTR_DELAY: "n/a",
                 ATTR_REAL_TIME: "n/a",
-                ATTR_DESTINATION: "n/a",
+                ATTR_DESTINATION_NAME: "n/a",
                 ATTR_TRANS_TYPE: "n/a",
                 ATTR_LINE_NAME: "n/a",
             }
@@ -156,7 +178,7 @@ class Bvgsensor(Entity):
         """
         self.fetchDataFromURL
         self.singleConnection = self.getSingleConnection(
-            self.direction, self.min_due_in, 0
+            self.direction, self.min_due_in
         )
         if self.singleConnection is not None and len(self.singleConnection) > 0:
             self._state = self.singleConnection.get(ATTR_DUE_IN)
@@ -166,8 +188,11 @@ class Bvgsensor(Entity):
     # only custom code beyond this line
     @property
     def fetchDataFromURL(self):
+
+        payload = f"/stops/{self._stop_id}/departures?direction={self._direction_id}&duration={self._cache_size}&remarks=false"
+
         try:
-            with urlopen(self.url) as response:
+            with urlopen(CON_REST_URL + payload) as response:
                 source = response.read().decode("utf8")
                 self.data = json.loads(source)
                 if self._con_state.get(CONNECTION_STATE) is CON_STATE_OFFLINE:
@@ -208,65 +233,63 @@ class Bvgsensor(Entity):
             )
             _LOGGER.error("I/O error({}): {}".format(e.errno, e.strerror))
 
-    def getSingleConnection(self, direction, min_due_in, nmbr):
+    def getSingleConnection(self, direction, min_due_in):
         timetable_l = list()
         date_now = datetime.now(pytz.timezone(self.hass_config.get("time_zone")))
-        for dest in direction:
-            for pos in self.data:
-                # _LOGGER.warning("conf_direction: {} pos_direction {}".format(direction, pos['direction']))
-                # if pos['direction'] in direction:
-                if dest in pos["direction"]:
-                    if pos["when"] is None:
-                        continue
-                    dep_time = datetime.strptime(pos["when"][:-6], "%Y-%m-%dT%H:%M:%S")
-                    dep_time = pytz.timezone("Europe/Berlin").localize(dep_time)
-                    delay = (pos["delay"] // 60) if pos["delay"] is not None else 0
-                    departure_td = dep_time - date_now
-                    # check if connection is not in the past
-                    if departure_td > timedelta(days=0):
-                        departure_td = departure_td.seconds // 60
-                        if departure_td >= min_due_in:
-                            timetable_l.append(
-                                {
-                                    ATTR_DESTINATION: pos["direction"],
-                                    ATTR_REAL_TIME: dep_time,
-                                    ATTR_DUE_IN: departure_td,
-                                    ATTR_DELAY: delay,
-                                    ATTR_TRIP_ID: pos["tripId"],
-                                    ATTR_STOP_NAME: pos["stop"]["name"],
-                                    ATTR_TRANS_TYPE: pos["line"]["product"],
-                                    ATTR_LINE_NAME: pos["line"]["name"],
-                                }
-                            )
-                            _LOGGER.debug("Connection found")
-                        else:
-                            _LOGGER.debug(
-                                "Connection is due in under {} minutes".format(
-                                    min_due_in
-                                )
-                            )
-                    else:
-                        _LOGGER.debug("Connection lies in the past")
-                else:
-                    _LOGGER.debug("No connection for specified direction")
-            try:
-                _LOGGER.debug("Valid connection found")
-                _LOGGER.debug("Connection: {}".format(timetable_l))
-                return timetable_l[int(nmbr)]
-            except IndexError as e:
-                if self.isCacheValid():
-                    _LOGGER.warning(
-                        "No valid connection found for sensor named {}. Please check your configuration.".format(
-                            self.name
+        for pos in self.data:
+            # _LOGGER.warning("conf_direction: {} pos_direction {}".format(direction, pos['direction']))
+            # if pos['direction'] in direction:
+            if direction in pos["direction"]:
+                if pos["when"] is None:
+                    continue
+                dep_time = datetime.strptime(pos["when"][:-6], "%Y-%m-%dT%H:%M:%S")
+                dep_time = pytz.timezone("Europe/Berlin").localize(dep_time)
+                delay = (pos["delay"] // 60) if pos["delay"] is not None else 0
+                departure_td = dep_time - date_now
+                # check if connection is not in the past
+                if departure_td > timedelta(days=0):
+                    departure_td = departure_td.seconds // 60
+                    if departure_td >= min_due_in:
+                        timetable_l.append(
+                            {
+                                ATTR_DESTINATION_NAME: pos["direction"],
+                                ATTR_REAL_TIME: dep_time,
+                                ATTR_DUE_IN: departure_td,
+                                ATTR_DELAY: delay,
+                                ATTR_TRIP_ID: pos["tripId"],
+                                ATTR_STOP_NAME: pos["stop"]["name"],
+                                ATTR_TRANS_TYPE: pos["line"]["product"],
+                                ATTR_LINE_NAME: pos["line"]["name"],
+                            }
                         )
-                    )
-                    self._isCacheValid = True
+                        _LOGGER.debug("Connection found")
+                    else:
+                        _LOGGER.debug(
+                            "Connection is due in under {} minutes".format(min_due_in)
+                        )
                 else:
-                    if self._isCacheValid:
-                        _LOGGER.warning("Cache is outdated.")
-                    self._isCacheValid = False
-                    # _LOGGER.error(e)
-                return None
+                    _LOGGER.debug("Connection lies in the past")
+            else:
+                _LOGGER.debug("No connection for specified direction")
+        try:
+            _LOGGER.debug("Valid connection found")
+            _LOGGER.debug("Connection: {}".format(timetable_l))
+            return timetable_l[0]
+
+        except IndexError as errormsg:
+            if self.isCacheValid():
+                _LOGGER.warning(
+                    "No valid connection found for sensor named {}. Please check your configuration.".format(
+                        self.name
+                    )
+                )
+                self._isCacheValid = True
+            else:
+                if self._isCacheValid:
+                    _LOGGER.warning("Cache is outdated.")
+                self._isCacheValid = False
+            _LOGGER.error(errormsg)
+            return None
 
     def isCacheValid(self):
         date_now = datetime.now(pytz.timezone(self.hass_config.get("time_zone")))
@@ -276,11 +299,11 @@ class Bvgsensor(Entity):
                 os.path.getmtime("{}{}".format(self.file_path, self.file_name)),
                 pytz.timezone(self._timezone),
             )
-        td = self._cache_creation_date - date_now
-        td = td.seconds
+        td = date_now - self._cache_creation_date
+        td = td.total_seconds()
         _LOGGER.debug("td is: {}".format(td))
         if td > (self._cache_size * 60):
-            _LOGGER.debug("Cache Age (not valid): {}".format(td // 60))
+            _LOGGER.debug("Cache Age not valid: {}".format(td // 60))
             return False
         else:
             return True
