@@ -52,7 +52,7 @@ ICONS = {
     None: "mdi:clock",
 }
 
-SCAN_INTERVAL = timedelta(seconds=120)
+SCAN_INTERVAL = timedelta(seconds=60)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -61,7 +61,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_MIN_DUE_IN, default=10): cv.positive_int,
         vol.Optional(CONF_CACHE_PATH, default="/"): cv.string,
         vol.Optional(CONF_NAME, default="BVG"): cv.string,
-        vol.Optional(CONF_CACHE_SIZE, default=90): cv.positive_int,
+        vol.Optional(CONF_CACHE_SIZE, default=60): cv.positive_int,
     }
 )
 
@@ -119,7 +119,7 @@ class Bvgsensor(Entity):
         self._direction_id = direction_id
         self.min_due_in = min_due_in
         self.data = None
-        self.singleConnection = None
+        self.connectionInfo = None
         self.file_path = self.hass_config.get("config_dir") + file_path
         self.file_name = "bvg_{}.json".format(self._stop_id)
         self._con_state = {CONNECTION_STATE: CON_STATE_ONLINE}
@@ -137,15 +137,15 @@ class Bvgsensor(Entity):
     @property
     def device_state_attributes(self):
         """Return the state attributes."""
-        if self.singleConnection is not None:
+        if self.connectionInfo is not None:
             return {
                 ATTR_STOP_ID: self._stop_id,
-                ATTR_STOP_NAME: self.singleConnection.get(ATTR_STOP_NAME),
-                ATTR_DELAY: self.singleConnection.get(ATTR_DELAY),
-                ATTR_REAL_TIME: self.singleConnection.get(ATTR_REAL_TIME),
-                ATTR_DESTINATION_NAME: self.singleConnection.get(ATTR_DESTINATION_NAME),
-                ATTR_TRANS_TYPE: self.singleConnection.get(ATTR_TRANS_TYPE),
-                ATTR_LINE_NAME: self.singleConnection.get(ATTR_LINE_NAME),
+                ATTR_STOP_NAME: self.connectionInfo.get(ATTR_STOP_NAME),
+                ATTR_DELAY: self.connectionInfo.get(ATTR_DELAY),
+                ATTR_REAL_TIME: self.connectionInfo.get(ATTR_REAL_TIME),
+                ATTR_DESTINATION_NAME: self.connectionInfo.get(ATTR_DESTINATION_NAME),
+                ATTR_TRANS_TYPE: self.connectionInfo.get(ATTR_TRANS_TYPE),
+                ATTR_LINE_NAME: self.connectionInfo.get(ATTR_LINE_NAME),
             }
         else:
             return {
@@ -166,8 +166,8 @@ class Bvgsensor(Entity):
     @property
     def icon(self):
         """Icon to use in the frontend, if any."""
-        if self.singleConnection is not None:
-            return ICONS.get(self.singleConnection.get(ATTR_TRANS_TYPE))
+        if self.connectionInfo is not None:
+            return ICONS.get(self.connectionInfo.get(ATTR_TRANS_TYPE))
         else:
             return ICONS.get(None)
 
@@ -177,11 +177,9 @@ class Bvgsensor(Entity):
         This is the only method that should fetch new data for Home Assistant.
         """
         self.fetchDataFromURL
-        self.singleConnection = self.getSingleConnection(
-            self.direction, self.min_due_in
-        )
-        if self.singleConnection is not None and len(self.singleConnection) > 0:
-            self._state = self.singleConnection.get(ATTR_DUE_IN)
+        self.connectionInfo = self.getConnectionInfo(self.direction, self.min_due_in)
+        if self.connectionInfo is not None and len(self.connectionInfo) > 0:
+            self._state = self.connectionInfo.get(ATTR_DUE_IN)
         else:
             self._state = "n/a"
 
@@ -207,33 +205,26 @@ class Bvgsensor(Entity):
                         self._cache_creation_date = datetime.now(
                             pytz.timezone(self._timezone)
                         )
-                except IOError as e:
-                    _LOGGER.error(
-                        "Could not write file. Please check your configuration and read/write access for path:{}".format(
-                            self.file_path
-                        )
+                except IOError as errormsg:
+                    _LOGGER.warning(
+                        f"Could not write file. Please check your configuration and read/write access for path: {self.file_path}"
                     )
-                    _LOGGER.error("I/O error({}): {}".format(e.errno, e.strerror))
-        except URLError as e:
+                    _LOGGER.error(errormsg)
+        except URLError as errormsg:
             if self._con_state.get(CONNECTION_STATE) is CON_STATE_ONLINE:
-                _LOGGER.debug(e)
                 _LOGGER.warning("Connection to BVG API lost, using local cache instead")
                 self._con_state.update({CONNECTION_STATE: CON_STATE_OFFLINE})
-            self.fetchDataFromFile()
-
-    def fetchDataFromFile(self):
-        try:
-            with open("{}{}".format(self.file_path, self.file_name), "r") as fd:
-                self.data = json.load(fd)
-        except IOError as e:
-            _LOGGER.error(
-                "Could not read file. Please check your configuration and read/write access for path: {}".format(
-                    self.file_path
+                _LOGGER.error(errormsg)
+            try:
+                with open("{}{}".format(self.file_path, self.file_name), "r") as fd:
+                    self.data = json.load(fd)
+            except IOError as errormsg:
+                _LOGGER.warning(
+                    "Could not read file. Please check your configuration and read/write access for path: {self.file_path}"
                 )
-            )
-            _LOGGER.error("I/O error({}): {}".format(e.errno, e.strerror))
+                _LOGGER.error(errormsg)
 
-    def getSingleConnection(self, direction, min_due_in):
+    def getConnectionInfo(self, direction, min_due_in):
         timetable_l = list()
         date_now = datetime.now(pytz.timezone(self.hass_config.get("time_zone")))
         for pos in self.data:
@@ -274,14 +265,13 @@ class Bvgsensor(Entity):
         try:
             _LOGGER.debug("Valid connection found")
             _LOGGER.debug("Connection: {}".format(timetable_l))
+
             return timetable_l[0]
 
         except IndexError as errormsg:
             if self.isCacheValid():
                 _LOGGER.warning(
-                    "No valid connection found for sensor named {}. Please check your configuration.".format(
-                        self.name
-                    )
+                    "No valid connection found for the sensor named {self.name}. Please check your configuration."
                 )
                 self._isCacheValid = True
             else:
@@ -299,11 +289,10 @@ class Bvgsensor(Entity):
                 os.path.getmtime("{}{}".format(self.file_path, self.file_name)),
                 pytz.timezone(self._timezone),
             )
-        td = date_now - self._cache_creation_date
-        td = td.total_seconds()
+        td = (date_now - self._cache_creation_date).total_seconds()
         _LOGGER.debug("td is: {}".format(td))
         if td > (self._cache_size * 60):
-            _LOGGER.debug("Cache Age not valid: {}".format(td // 60))
+            _LOGGER.debug(f"Cache outdated: {td // 60} min.")
             return False
         else:
             return True
