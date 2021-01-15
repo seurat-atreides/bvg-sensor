@@ -121,7 +121,7 @@ class Bvgsensor(Entity):
         self.data = None
         self.connectionInfo = None
         self.file_path = self.hass_config.get("config_dir") + file_path
-        self.file_name = "bvg_{}.json".format(self._stop_id)
+        self.file_name = f"bvg_{self._stop_id}.json"
         self._con_state = {CONNECTION_STATE: CON_STATE_ONLINE}
 
     @property
@@ -197,9 +197,9 @@ class Bvgsensor(Entity):
                 if self._con_state.get(CONNECTION_STATE) is CON_STATE_OFFLINE:
                     _LOGGER.warning("Connection to BVG API re-established")
                     self._con_state.update({CONNECTION_STATE: CON_STATE_ONLINE})
-                # write the response to a file for caching if connection is not available, which seems to happen from time to time
+                # write the response to a file for caching if connection is not available
                 try:
-                    with open("{}{}".format(self.file_path, self.file_name), "w") as fd:
+                    with open(f"{self.file_path}{self.file_name}", "w") as fd:
                         # self.data = json.load(fd)
                         json.dump(self.data, fd, ensure_ascii=False)
                         # json.writes(response)
@@ -208,7 +208,7 @@ class Bvgsensor(Entity):
                         )
                 except IOError as errormsg:
                     _LOGGER.warning(
-                        f"Could not write file. Please check your configuration and read/write access for path: {self.file_path}"
+                        f"Couldn't write file. Please check your configuration and read/write access for path: {self.file_path}"
                     )
                     _LOGGER.error(errormsg)
         except URLError as errormsg:
@@ -217,13 +217,14 @@ class Bvgsensor(Entity):
                 self._con_state.update({CONNECTION_STATE: CON_STATE_OFFLINE})
                 _LOGGER.error(errormsg)
             try:
-                with open("{}{}".format(self.file_path, self.file_name), "r") as fd:
+                with open(f"{self.file_path}{self.file_name}", "r") as fd:
                     self.data = json.load(fd)
             except IOError as errormsg:
                 _LOGGER.warning(
                     "Could not read file. Please check your configuration and read/write access for path: {self.file_path}"
                 )
                 _LOGGER.error(errormsg)
+                return None
 
         timetable_l = list()
         date_now = datetime.now(pytz.timezone(self.hass_config.get("time_zone")))
@@ -233,7 +234,10 @@ class Bvgsensor(Entity):
                     continue
                 dep_time = datetime.strptime(pos["when"][:-6], "%Y-%m-%dT%H:%M:%S")
                 dep_time = pytz.timezone("Europe/Berlin").localize(dep_time)
-                delay = (pos["delay"] // 60) if pos["delay"] is not None else 0
+                # if pos["delay"] is not None:
+                #     delay = pos["delay"] // 60  # Convert from seconds to minutes
+                # else:
+                #     delay = 0
                 departure_td = dep_time - date_now
                 # check if connection is not in the past
                 if departure_td > timedelta(days=0):
@@ -243,7 +247,7 @@ class Bvgsensor(Entity):
                             {
                                 ATTR_DESTINATION_NAME: pos["direction"],
                                 ATTR_REAL_TIME: dep_time,
-                                ATTR_DUE_IN: departure_td + delay,
+                                ATTR_DUE_IN: departure_td,
                                 # ATTR_DELAY: delay,
                                 ATTR_TRIP_ID: pos["tripId"],
                                 ATTR_STOP_NAME: pos["stop"]["name"],
@@ -254,7 +258,7 @@ class Bvgsensor(Entity):
                         _LOGGER.debug("Connection found")
                     else:
                         _LOGGER.debug(
-                            "Connection is due in under {} minutes".format(min_due_in)
+                            f"Connection is due in under {min_due_in} minutes"
                         )
                 else:
                     _LOGGER.debug("Connection lies in the past")
@@ -262,7 +266,7 @@ class Bvgsensor(Entity):
                 _LOGGER.debug("No connection for specified direction")
 
             _LOGGER.debug("Valid connection found")
-            _LOGGER.debug("Connection: {}".format(timetable_l))
+            _LOGGER.debug(f"Connection: {timetable_l}")
 
         if len(timetable_l):
             return timetable_l[0]
@@ -274,18 +278,17 @@ class Bvgsensor(Entity):
                 self._isCacheValid = True
             else:
                 self._isCacheValid = False
-            return None
 
     def isCacheValid(self):
         date_now = datetime.now(pytz.timezone(self.hass_config.get("time_zone")))
         # If the component is starting without internet connection
         if self._cache_creation_date is None:
             self._cache_creation_date = datetime.fromtimestamp(
-                os.path.getmtime("{}{}".format(self.file_path, self.file_name)),
+                os.path.getmtime(f"{self.file_path}{self.file_name}"),
                 pytz.timezone(self._timezone),
             )
         td = (date_now - self._cache_creation_date).total_seconds()
-        _LOGGER.debug("td is: {}".format(td))
+        _LOGGER.debug(f"td is: {td}")
         if td > (self._cache_size * 60):
             _LOGGER.debug(f"Cache is outdated by: {td // 60} min.")
             return False
