@@ -1,6 +1,7 @@
 {
   "domain": "bvg-sensor",
   "name": "BVG Berlin public transportation sensor",
+  "version": "1.0",
   "documentation": "https://github.com/seurat-atreides/bvg-sensor",
   "requirements": [],
   "dependencies": [],
