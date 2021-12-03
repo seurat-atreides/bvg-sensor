@@ -12,16 +12,16 @@ The sensor will display the minutes until the next departure for the configured 
 
 During testing I found that the API frequently becomes unavailable, possibly to keep the amount of requests low. Therefore this component keeps a local copy of the data (90 minutes). The local data will only be used while "offline" and is refreshed as soon as the API endpoint becomes available again.
 
-You can check the status of the API Endpoint here: https://status.transport.rest/784879513
+You can check the status of the API Endpoint here: [BVG Rest Endpoint Status](https://stats.uptimerobot.com/57wNLs39M/784879513)
 
 This component uses the API provided by the [v5.bvg.transport.rest](https://v5.bvg.transport.rest).
 
 Read the [REST API documentation](https://v5.bvg.transport.rest/api.html).
 
 # Characteristics
-This sensor will pull departure information for a particular travel direction from the [v5.bvg.transport.rest API](https://v5.bvg.transport.rest/).
+This sensor will pull departure information for a particular travel direction from the [v5.bvg.transport.rest API](https://v5.bvg.transport.rest/).<br>
 This information contains all departures for the stop/station and travel direction of interest. It spans a period of 60 min. (default) and is stored in a file: <file_path>/bvg_<stop_id>.
-If the REST API is unavailable the local file will be used as the source of data.
+If the REST API is unavailable the local file will be used as the source of data.<br>
 
 # Installation
 Create a ``custom_components`` subdirectory inside your Home Assistant ``/config`` folder.
@@ -36,29 +36,18 @@ Get your IBNR (`id:`) within the json repsonse in your browser.
 
 ### Examples:
 ```
-curl https://v5.vbb.transport.rest/locations?query=Rosa -s | jq
-[
-  {
-    "type": "stop",
-    "id": "900000100016",
-    "name": "U Rosa-Luxemburg-Platz",
-    "location": {
-      "type": "location",
-      "id": "900100016",
-      "latitude": 52.528187,
-      "longitude": 13.410405
-    },
+curl https://v5.bvg.transport.rest/locations?query=Rosa -s | jq 
 ```
-You want to display the departure times from "U Rosa-Luxemburg-Platz" in direction to "Pankow" type :
+The **stop_id** IBNR for **U Rosa-Luxemburg-Platz** is: **900100016**
+
+If you want to display the departure times from "U Rosa-Luxemburg-Platz" towards "S+U Pankow" station type:
 
 ```
-curl https://v5.bvg.transport.rest/stops/900000100016/departures?direction=900000130002 -s | jq
+curl https://v5.bvg.transport.rest/stops/900100016/departures?direction=900130002 -s | jq
 ```
 
-Your **stop_id** IBNR for **U Rosa-Luxemburg-Platz** is: **900000100016**
-
-The **direction** IBNR for **S-U Pankow** is: **900000130002**
-
+The **direction** IBNR for station **S-U Pankow** is: **900130002**<br>
+The delay return vaule has been ommited from the sensor code since the when parameter takes delays into cosideration.
 # Configuration
 
 To add the BVG Sensor Component to Home Assistant, add the following to your configuration.yaml file:

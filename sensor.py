@@ -1,4 +1,4 @@
-"""Sensor for the BVG data."""
+"""Sensor for the Berlin BVG data."""
 
 from urllib.request import urlopen
 import json
@@ -20,7 +20,6 @@ _LOGGER = logging.getLogger(__name__)
 ATTR_STOP_ID = "stop_id"
 ATTR_STOP_NAME = "stop_name"
 ATTR_DUE_IN = "due_in"
-# ATTR_DELAY = "delay"
 ATTR_REAL_TIME = "departure_time"
 ATTR_DESTINATION_NAME = "direction"
 ATTR_TRANS_TYPE = "type"
@@ -141,7 +140,6 @@ class Bvgsensor(Entity):
             return {
                 ATTR_STOP_ID: self._stop_id,
                 ATTR_STOP_NAME: self.connectionInfo.get(ATTR_STOP_NAME),
-                # ATTR_DELAY: self.connectionInfo.get(ATTR_DELAY),
                 ATTR_REAL_TIME: self.connectionInfo.get(ATTR_REAL_TIME),
                 ATTR_DESTINATION_NAME: self.connectionInfo.get(ATTR_DESTINATION_NAME),
                 ATTR_TRANS_TYPE: self.connectionInfo.get(ATTR_TRANS_TYPE),
@@ -151,7 +149,6 @@ class Bvgsensor(Entity):
             return {
                 ATTR_STOP_ID: "n/a",
                 ATTR_STOP_NAME: "n/a",
-                # ATTR_DELAY: "n/a",
                 ATTR_REAL_TIME: "n/a",
                 ATTR_DESTINATION_NAME: "n/a",
                 ATTR_TRANS_TYPE: "n/a",
@@ -234,10 +231,6 @@ class Bvgsensor(Entity):
                     continue
                 dep_time = datetime.strptime(pos["when"][:-6], "%Y-%m-%dT%H:%M:%S")
                 dep_time = pytz.timezone("Europe/Berlin").localize(dep_time)
-                # if pos["delay"] is not None:
-                #     delay = pos["delay"] // 60  # Convert from seconds to minutes
-                # else:
-                #     delay = 0
                 departure_td = dep_time - date_now
                 # check if connection is not in the past
                 if departure_td > timedelta(days=0):
@@ -248,7 +241,6 @@ class Bvgsensor(Entity):
                                 ATTR_DESTINATION_NAME: pos["direction"],
                                 ATTR_REAL_TIME: dep_time,
                                 ATTR_DUE_IN: departure_td,
-                                # ATTR_DELAY: delay,
                                 ATTR_TRIP_ID: pos["tripId"],
                                 ATTR_STOP_NAME: pos["stop"]["name"],
                                 ATTR_TRANS_TYPE: pos["line"]["product"],
