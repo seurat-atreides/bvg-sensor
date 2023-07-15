@@ -19,7 +19,7 @@ This component uses the API provided by the [v6.bvg.transport.rest](https://v6.b
 Read the [REST API documentation](https://v6.bvg.transport.rest/api.html).
 
 # Characteristics
-This sensor will pull departure information for a particular travel direction from the [v5.bvg.transport.rest API](https://v6.bvg.transport.rest/).<br>
+This sensor will pull departure information for a particular travel direction from the [v6.bvg.transport.rest API](https://v6.bvg.transport.rest/).<br>
 This information contains all departures for the stop/station and travel direction of interest. It spans a period of 60 min. (default) and is stored in a file: <file_path>/bvg_<stop_id>.
 If the REST API is unavailable the local file will be used as the source of data.<br>
 
@@ -31,19 +31,19 @@ Clone this repo inside the ``/config/custom_components/`` folder.
 
 You will need to specify at least a ``stop_id`` and a ``direction`` for the connection you would like to display.
 
-To find your station IBNR use the following link: https://v5.bvg.transport.rest/locations?query=``string`` and replace ``string`` with an aproximate name for your station.
+To find your station IBNR use the following link: https://v6.bvg.transport.rest/locations?query=``string`` and replace ``string`` with an aproximate name for your station.
 Get your IBNR (`id:`) within the json repsonse in your browser.
 
 ### Examples:
 ```
-curl https://v5.bvg.transport.rest/locations?query=Rosa -s | jq 
+curl https://v6.bvg.transport.rest/locations?query=Rosa -s | jq 
 ```
 The **stop_id** IBNR for **U Rosa-Luxemburg-Platz** is: **900100016**
 
 If you want to display the departure times from "U Rosa-Luxemburg-Platz" towards "S+U Pankow" station type:
 
 ```
-curl https://v5.bvg.transport.rest/stops/900100016/departures?direction=900130002 -s | jq
+curl https://v6.bvg.transport.rest/stops/900100016/departures?direction=900130002 -s | jq
 ```
 
 The **direction** IBNR for station **S-U Pankow** is: **900130002**<br>
