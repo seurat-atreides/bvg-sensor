@@ -14,12 +14,12 @@ During testing I found that the API frequently becomes unavailable, possibly to 
 
 You can check the status of the API Endpoint here: [BVG Rest Endpoint Status](https://stats.uptimerobot.com/57wNLs39M/784879513)
 
-This component uses the API provided by the [v5.bvg.transport.rest](https://v5.bvg.transport.rest).
+This component uses the API provided by the [v6.bvg.transport.rest](https://v6.bvg.transport.rest).
 
-Read the [REST API documentation](https://v5.bvg.transport.rest/api.html).
+Read the [REST API documentation](https://v6.bvg.transport.rest/api.html).
 
 # Characteristics
-This sensor will pull departure information for a particular travel direction from the [v5.bvg.transport.rest API](https://v5.bvg.transport.rest/).<br>
+This sensor will pull departure information for a particular travel direction from the [v5.bvg.transport.rest API](https://v6.bvg.transport.rest/).<br>
 This information contains all departures for the stop/station and travel direction of interest. It spans a period of 60 min. (default) and is stored in a file: <file_path>/bvg_<stop_id>.
 If the REST API is unavailable the local file will be used as the source of data.<br>
 
