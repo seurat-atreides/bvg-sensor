@@ -225,7 +225,7 @@ class Bvgsensor(Entity):
                 _LOGGER.warning(
                     "Could not read file. Please check your configuration and read/write access for path: {self.file_path}"
                 )
-                _LOGGER.error(errmsg)
+                _LOGGER.error(errmsg)rror
                 return None
 
         timetable_l = list()
