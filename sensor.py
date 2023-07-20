@@ -51,7 +51,7 @@ ICONS = {
     None: "mdi:clock",
 }
 
-SCAN_INTERVAL = timedelta(seconds=20)
+SCAN_INTERVAL = timedelta(seconds=30)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
