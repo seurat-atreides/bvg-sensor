@@ -51,7 +51,7 @@ ICONS = {
     None: "mdi:clock",
 }
 
-SCAN_INTERVAL = timedelta(seconds=60)
+SCAN_INTERVAL = timedelta(seconds=20)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -70,8 +70,7 @@ def getNameFromIBNR(ibnr):
     payload = f"/stops/{ibnr}"
 
     try:
-        stop = json.loads(
-            urlopen(CON_REST_URL + payload).read().decode("utf8"))
+        stop = json.loads(urlopen(CON_REST_URL + payload).read().decode("utf8"))
         if stop["type"] == "stop" or stop["type"] == "station":
             name = stop["name"]
 
@@ -175,8 +174,7 @@ class Bvgsensor(Entity):
         This is the only method that should fetch new data for Home Assistant.
         """
         # self.fetchDataFromAPI
-        self.connectionInfo = self.getConnectionInfo(
-            self.direction, self.min_due_in)
+        self.connectionInfo = self.getConnectionInfo(self.direction, self.min_due_in)
         if self.connectionInfo is not None and len(self.connectionInfo) > 0:
             self._state = self.connectionInfo.get(ATTR_DUE_IN)
         else:
@@ -187,7 +185,7 @@ class Bvgsensor(Entity):
     def getConnectionInfo(self, direction, min_due_in):
         # define the REST payload
         payload = f"/stops/{self._stop_id}/departures?direction={self._direction_id}&duration={self._cache_size}&remarks=false"
-        #payload = f"/stops/{self._stop_id}/departures?direction={self._direction_id}"
+        # payload = f"/stops/{self._stop_id}/departures?direction={self._direction_id}"
         try:
             with urlopen(
                 CON_REST_URL + payload
@@ -196,11 +194,12 @@ class Bvgsensor(Entity):
                 self.data = json.loads(source)  # JSON format the data
                 if self._con_state.get(CONNECTION_STATE) is CON_STATE_OFFLINE:
                     _LOGGER.warning("Connection to BVG API re-established")
-                    self._con_state.update(
-                        {CONNECTION_STATE: CON_STATE_ONLINE})
+                    self._con_state.update({CONNECTION_STATE: CON_STATE_ONLINE})
                 # write the response to a file for caching if connection is not available
                 try:
-                    with open(f"{self.file_path}{self.file_name}", "w") as fd:
+                    with open(
+                        f"{self.file_path}{self.file_name}", "w", encoding="utf8"
+                    ) as fd:
                         # self.data = json.load(fd)
                         json.dump(self.data, fd, ensure_ascii=False)
                         # json.writes(response)
@@ -214,29 +213,28 @@ class Bvgsensor(Entity):
                     _LOGGER.error(errormsg)
         except URLError as errormsg:
             if self._con_state.get(CONNECTION_STATE) is CON_STATE_ONLINE:
-                _LOGGER.warning(
-                    "Connection to BVG API lost, using local cache instead")
+                _LOGGER.warning("Connection to BVG API lost, using local cache instead")
                 self._con_state.update({CONNECTION_STATE: CON_STATE_OFFLINE})
                 _LOGGER.error(errormsg)
             try:
-                with open(f"{self.file_path}{self.file_name}", "r") as fd:
+                with open(
+                    f"{self.file_path}{self.file_name}", "r", encoding="utf8"
+                ) as fd:
                     self.data = json.load(fd)
-            except IOError as errormsg:
+            except IOError as errmsg:
                 _LOGGER.warning(
                     "Could not read file. Please check your configuration and read/write access for path: {self.file_path}"
                 )
-                _LOGGER.error(errormsg)
+                _LOGGER.error(errmsg)
                 return None
 
         timetable_l = list()
-        date_now = datetime.now(pytz.timezone(
-            self.hass_config.get("time_zone")))
-        for pos in self.data['departures']:
-            if self._direction_id in pos['destination']['id']:
+        date_now = datetime.now(pytz.timezone(self.hass_config.get("time_zone")))
+        for pos in self.data["departures"]:
+            if pos:  # if pos not empty
                 if pos["when"] is None:
                     continue
-                dep_time = datetime.strptime(
-                    pos["when"][:-6], "%Y-%m-%dT%H:%M:%S")
+                dep_time = datetime.strptime(pos["when"][:-6], "%Y-%m-%dT%H:%M:%S")
                 dep_time = pytz.timezone("Europe/Berlin").localize(dep_time)
                 departure_td = dep_time - date_now
                 # check if connection is not in the past
@@ -267,21 +265,19 @@ class Bvgsensor(Entity):
             _LOGGER.debug("Valid connection found")
             _LOGGER.debug(f"Connection: {timetable_l}")
 
-        if len(timetable_l):
-            '''_LOGGER.info(f"timetable_l = {len(timetable_l)}")'''
+        if timetable_l:  # if timetable_l not empty
             return timetable_l[0]
+
+        if self.isCacheValid():
+            _LOGGER.warning(
+                f"No valid connection found for the sensor named {self.name}. Please check your configuration."
+            )
+            self._isCacheValid = True
         else:
-            if self.isCacheValid():
-                _LOGGER.warning(
-                    f"No valid connection found for the sensor named {self.name}. Please check your configuration."
-                )
-                self._isCacheValid = True
-            else:
-                self._isCacheValid = False
+            self._isCacheValid = False
 
     def isCacheValid(self):
-        date_now = datetime.now(pytz.timezone(
-            self.hass_config.get("time_zone")))
+        date_now = datetime.now(pytz.timezone(self.hass_config.get("time_zone")))
         # If the component is starting without internet connection
         if self._cache_creation_date is None:
             self._cache_creation_date = datetime.fromtimestamp(
