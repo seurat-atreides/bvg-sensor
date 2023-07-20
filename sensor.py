@@ -70,12 +70,7 @@ def getNameFromIBNR(ibnr):
     payload = f"/stops/{ibnr}"
 
     try:
-<<<<<<< HEAD
         stop = json.loads(urlopen(CON_REST_URL + payload).read().decode("utf8"))
-=======
-        stop = json.loads(
-            urlopen(CON_REST_URL + payload).read().decode("utf8"))
->>>>>>> 3774e1d3b0b3f980e4903c80a8dfa8752d3ffa73
         if stop["type"] == "stop" or stop["type"] == "station":
             name = stop["name"]
 
@@ -179,12 +174,7 @@ class Bvgsensor(Entity):
         This is the only method that should fetch new data for Home Assistant.
         """
         # self.fetchDataFromAPI
-<<<<<<< HEAD
         self.connectionInfo = self.getConnectionInfo(self.direction, self.min_due_in)
-=======
-        self.connectionInfo = self.getConnectionInfo(
-            self.direction, self.min_due_in)
->>>>>>> 3774e1d3b0b3f980e4903c80a8dfa8752d3ffa73
         if self.connectionInfo is not None and len(self.connectionInfo) > 0:
             self._state = self.connectionInfo.get(ATTR_DUE_IN)
         else:
@@ -195,11 +185,7 @@ class Bvgsensor(Entity):
     def getConnectionInfo(self, direction, min_due_in):
         # define the REST payload
         payload = f"/stops/{self._stop_id}/departures?direction={self._direction_id}&duration={self._cache_size}&remarks=false"
-<<<<<<< HEAD
         # payload = f"/stops/{self._stop_id}/departures?direction={self._direction_id}"
-=======
-        #payload = f"/stops/{self._stop_id}/departures?direction={self._direction_id}"
->>>>>>> 3774e1d3b0b3f980e4903c80a8dfa8752d3ffa73
         try:
             with urlopen(
                 CON_REST_URL + payload
@@ -208,20 +194,12 @@ class Bvgsensor(Entity):
                 self.data = json.loads(source)  # JSON format the data
                 if self._con_state.get(CONNECTION_STATE) is CON_STATE_OFFLINE:
                     _LOGGER.warning("Connection to BVG API re-established")
-<<<<<<< HEAD
                     self._con_state.update({CONNECTION_STATE: CON_STATE_ONLINE})
                 # write the response to a file for caching if connection is not available
                 try:
                     with open(
                         f"{self.file_path}{self.file_name}", "w", encoding="utf8"
                     ) as fd:
-=======
-                    self._con_state.update(
-                        {CONNECTION_STATE: CON_STATE_ONLINE})
-                # write the response to a file for caching if connection is not available
-                try:
-                    with open(f"{self.file_path}{self.file_name}", "w") as fd:
->>>>>>> 3774e1d3b0b3f980e4903c80a8dfa8752d3ffa73
                         # self.data = json.load(fd)
                         json.dump(self.data, fd, ensure_ascii=False)
                         # json.writes(response)
@@ -235,7 +213,6 @@ class Bvgsensor(Entity):
                     _LOGGER.error(errormsg)
         except URLError as errormsg:
             if self._con_state.get(CONNECTION_STATE) is CON_STATE_ONLINE:
-<<<<<<< HEAD
                 _LOGGER.warning("Connection to BVG API lost, using local cache instead")
                 self._con_state.update({CONNECTION_STATE: CON_STATE_OFFLINE})
                 _LOGGER.error(errormsg)
@@ -248,7 +225,7 @@ class Bvgsensor(Entity):
                 _LOGGER.warning(
                     "Could not read file. Please check your configuration and read/write access for path: {self.file_path}"
                 )
-                _LOGGER.error(errmsg)
+                _LOGGER.error(errmsg)rror
                 return None
 
         timetable_l = list()
@@ -258,31 +235,6 @@ class Bvgsensor(Entity):
                 if pos["when"] is None:
                     continue
                 dep_time = datetime.strptime(pos["when"][:-6], "%Y-%m-%dT%H:%M:%S")
-=======
-                _LOGGER.warning(
-                    "Connection to BVG API lost, using local cache instead")
-                self._con_state.update({CONNECTION_STATE: CON_STATE_OFFLINE})
-                _LOGGER.error(errormsg)
-            try:
-                with open(f"{self.file_path}{self.file_name}", "r") as fd:
-                    self.data = json.load(fd)
-            except IOError as errormsg:
-                _LOGGER.warning(
-                    "Could not read file. Please check your configuration and read/write access for path: {self.file_path}"
-                )
-                _LOGGER.error(errormsg)
-                return None
-
-        timetable_l = list()
-        date_now = datetime.now(pytz.timezone(
-            self.hass_config.get("time_zone")))
-        for pos in self.data['departures']:
-            if self._direction_id in pos['destination']['id']:
-                if pos["when"] is None:
-                    continue
-                dep_time = datetime.strptime(
-                    pos["when"][:-6], "%Y-%m-%dT%H:%M:%S")
->>>>>>> 3774e1d3b0b3f980e4903c80a8dfa8752d3ffa73
                 dep_time = pytz.timezone("Europe/Berlin").localize(dep_time)
                 departure_td = dep_time - date_now
                 # check if connection is not in the past
@@ -313,7 +265,6 @@ class Bvgsensor(Entity):
             _LOGGER.debug("Valid connection found")
             _LOGGER.debug(f"Connection: {timetable_l}")
 
-<<<<<<< HEAD
         if timetable_l:  # if timetable_l not empty
             return timetable_l[0]
 
@@ -327,23 +278,6 @@ class Bvgsensor(Entity):
 
     def isCacheValid(self):
         date_now = datetime.now(pytz.timezone(self.hass_config.get("time_zone")))
-=======
-        if len(timetable_l):
-            '''_LOGGER.info(f"timetable_l = {len(timetable_l)}")'''
-            return timetable_l[0]
-        else:
-            if self.isCacheValid():
-                _LOGGER.warning(
-                    f"No valid connection found for the sensor named {self.name}. Please check your configuration."
-                )
-                self._isCacheValid = True
-            else:
-                self._isCacheValid = False
-
-    def isCacheValid(self):
-        date_now = datetime.now(pytz.timezone(
-            self.hass_config.get("time_zone")))
->>>>>>> 3774e1d3b0b3f980e4903c80a8dfa8752d3ffa73
         # If the component is starting without internet connection
         if self._cache_creation_date is None:
             self._cache_creation_date = datetime.fromtimestamp(
