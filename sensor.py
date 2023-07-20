@@ -60,7 +60,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_MIN_DUE_IN, default=10): cv.positive_int,
         vol.Optional(CONF_CACHE_PATH, default="/"): cv.string,
         vol.Optional(CONF_NAME, default="BVG"): cv.string,
-        vol.Optional(CONF_CACHE_SIZE, default=60): cv.positive_int,
+        vol.Optional(CONF_CACHE_SIZE, default=20): cv.positive_int,
     }
 )
 
